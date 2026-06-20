@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customs ZTW1 FX Update"
+  short_description: "Import GC331 purchase rates into SAP OB08 ZTW1"
+  default_prompt: "Run the customs GC331 purchase-rate workflow for SAP OB08 ZTW1, then verify SAP and send the completion notice."

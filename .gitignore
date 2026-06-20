@@ -1,0 +1,5 @@
+*.tmp
+output/
+credentials.json
+token.json
+*.log
