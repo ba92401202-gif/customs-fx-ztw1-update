@@ -21,6 +21,30 @@ Use this skill for a recurring customs exchange-rate workflow:
 10. After saving, re-enter `OB08` and verify all target `KURSP` values numerically match GC331 purchase rates.
 11. Send a Traditional Chinese completion notice. Include source period, rates, SAP save/verify status, and mail message id.
 
+## Portable Runtime
+
+This repo includes a Windows runtime under `runtime/`.
+
+Install dependencies for Gmail sending:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\runtime\install_dependencies.ps1"
+```
+
+Run interactively:
+
+```powershell
+.\runtime\run_now.cmd
+```
+
+The interactive runner must ask for required runtime information before changing SAP:
+
+- Recipient email or skip Gmail.
+- GC331 text file path, or confirmation that the newest GC331-like file is in Downloads.
+- SAP GUI login/readiness confirmation.
+- Rate type, target currency, and source currencies.
+- Final confirmation before SAP update.
+
 ## SAP Rules
 
 - Do not directly write `FFACT` or `TFACT` in OB08. In some SAP GUI layouts those controls display ratio values but are not changeable. Let SAP default or carry ratio values after entering the currency pair and rate.
