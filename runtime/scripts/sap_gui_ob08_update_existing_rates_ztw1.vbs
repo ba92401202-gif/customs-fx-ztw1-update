@@ -1,17 +1,40 @@
 Option Explicit
 
-Dim outPath, validFrom, rateType, usdRate, eurRate, jpyRate, cnyRate
+Dim outPath, validFrom, rateType, toCurrency, ratePairsArg
 outPath = WScript.Arguments(0)
 validFrom = WScript.Arguments(1)
 rateType = WScript.Arguments(2)
-usdRate = WScript.Arguments(3)
-eurRate = WScript.Arguments(4)
-jpyRate = WScript.Arguments(5)
-cnyRate = WScript.Arguments(6)
+toCurrency = WScript.Arguments(3)
+ratePairsArg = WScript.Arguments(4)
 
 Dim fso, out
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set out = fso.CreateTextFile(outPath, True, True)
+
+' ratePairsArg format: CURR=RATE[,CURR=RATE...], e.g. USD=31.51,EUR=34.2
+Dim pairItems, pairCount, currList(), rateList(), i, kv
+pairItems = Split(ratePairsArg, ",")
+ReDim currList(UBound(pairItems))
+ReDim rateList(UBound(pairItems))
+pairCount = 0
+For i = 0 To UBound(pairItems)
+  If Trim(pairItems(i)) <> "" Then
+    kv = Split(pairItems(i), "=")
+    If UBound(kv) <> 1 Or Trim(kv(0)) = "" Or Trim(kv(1)) = "" Then
+      out.WriteLine "ERROR: Invalid currency rate pair: " & pairItems(i)
+      out.Close
+      WScript.Quit 1
+    End If
+    currList(pairCount) = UCase(Trim(kv(0)))
+    rateList(pairCount) = Trim(kv(1))
+    pairCount = pairCount + 1
+  End If
+Next
+If pairCount = 0 Then
+  out.WriteLine "ERROR: No currency rate pairs provided."
+  out.Close
+  WScript.Quit 1
+End If
 
 On Error Resume Next
 Dim SapGuiAuto, app, conn, sess
@@ -70,7 +93,7 @@ Sub PositionKey(fcurr)
   Err.Clear
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[0,21]").Text = rateType
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[1,21]").Text = fcurr
-  sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[2,21]").Text = "TWD"
+  sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[2,21]").Text = toCurrency
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[3,21]").Text = validFrom
   sess.findById("wnd[1]/tbar[0]/btn[0]").Press
   WScript.Sleep 800
@@ -84,7 +107,7 @@ Sub UpdateRate(fcurr, rate)
   gotFcurr = Cell(tableId & "/ctxtV_TCURR-FCURR[5,0]")
   tcurr = Cell(tableId & "/ctxtV_TCURR-TCURR[10,0]")
   out.WriteLine "before " & fcurr & ": " & kurst & "/" & gdatu & "/" & gotFcurr & "/" & tcurr & " KURSM=" & Cell(tableId & "/txtRFCU9-KURSM[2,0]") & " KURSP=" & Cell(tableId & "/txtRFCU9-KURSP[7,0]") & " FFACT=" & Cell(tableId & "/txtRFCU9-*FFACT[4,0]") & " TFACT=" & Cell(tableId & "/txtRFCU9-*TFACT[9,0]")
-  If Not (kurst = rateType And gdatu = validFrom And gotFcurr = fcurr And tcurr = "TWD") Then
+  If Not (kurst = rateType And gdatu = validFrom And gotFcurr = fcurr And tcurr = toCurrency) Then
     out.WriteLine "ERROR: Positioned row does not match target key for " & fcurr
     out.Close
     WScript.Quit 2
@@ -105,11 +128,11 @@ out.WriteLine "transaction=" & sess.Info.Transaction
 out.WriteLine "titleBefore=" & sess.findById("wnd[0]").Text
 out.WriteLine "rateType=" & rateType
 out.WriteLine "validFrom=" & validFrom
+out.WriteLine "toCurrency=" & toCurrency
 
-UpdateRate "USD", usdRate
-UpdateRate "EUR", eurRate
-UpdateRate "JPY", jpyRate
-UpdateRate "CNY", cnyRate
+For i = 0 To pairCount - 1
+  UpdateRate currList(i), rateList(i)
+Next
 
 sess.findById("wnd[0]/tbar[0]/btn[11]").Press
 WScript.Sleep 1500

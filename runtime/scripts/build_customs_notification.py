@@ -25,8 +25,8 @@ def build_body(data: dict, args: argparse.Namespace) -> str:
         "",
         "幣別 | 買進匯率 | SAP KURSP",
     ]
-    for curr in ("USD", "EUR", "JPY", "CNY"):
-        rows.append(f"{curr} | {rates[curr]['purchase_in']} | {rates[curr]['purchase_in']}")
+    for curr, row in rates.items():
+        rows.append(f"{curr} | {row['purchase_in']} | {row['purchase_in']}")
     rows.extend(
         [
             "",

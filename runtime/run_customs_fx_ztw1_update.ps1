@@ -177,7 +177,7 @@ if ($probeText -match "ERROR:") {
 }
 
 Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_go_tcode.vbs") -Arguments @("OB08", $navOut)
-Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_position_check_ztw1.vbs") -Arguments @($checkBeforeOut, $validFrom, $RateType, ($currList -join ","))
+Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_position_check_ztw1.vbs") -Arguments @($checkBeforeOut, $validFrom, $RateType, ($currList -join ","), $ToCurrency)
 
 $before = Parse-PositionCheck -Path $checkBeforeOut
 $counts = @{}
@@ -200,20 +200,24 @@ if (-not ($allMissing -or $allExisting)) {
     throw "Mixed OB08 target key state detected. Counts=$($counts | ConvertTo-Json -Compress)"
 }
 
-$usdRate = Get-Rate $parsedRates "USD"
-$eurRate = Get-Rate $parsedRates "EUR"
-$jpyRate = Get-Rate $parsedRates "JPY"
-$cnyRate = Get-Rate $parsedRates "CNY"
+$ratePairs = @(foreach ($curr in $currList) {
+    $rate = Get-Rate $parsedRates $curr
+    if (-not $rate) {
+        throw "No customs purchase rate parsed for $curr."
+    }
+    "{0}={1}" -f $curr, $rate
+})
+$ratePairsSpec = $ratePairs -join ","
 
 if ($allMissing) {
     Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_open_new_dump.vbs") -Arguments @((Join-Path $OutputDir "ob08_new_entries_dump.txt"))
     Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_create_rates_ztw1.vbs") -Arguments @(
-        $sapActionOut, $validFrom, $RateType, $usdRate, $eurRate, $jpyRate, $cnyRate
+        $sapActionOut, $validFrom, $RateType, $ToCurrency, $ratePairsSpec
     )
 }
 else {
     Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_update_existing_rates_ztw1.vbs") -Arguments @(
-        $sapActionOut, $validFrom, $RateType, $usdRate, $eurRate, $jpyRate, $cnyRate
+        $sapActionOut, $validFrom, $RateType, $ToCurrency, $ratePairsSpec
     )
 }
 
@@ -222,7 +226,7 @@ $saveLine = $actionLines | Where-Object { $_ -like "statusAfterSave=*" } | Selec
 $sapSaveStatus = if ($saveLine) { ($saveLine -split "=", 2)[1].Trim() } else { "No SAP save status captured; review ob08_action.txt" }
 
 Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_go_tcode.vbs") -Arguments @("OB08", (Join-Path $OutputDir "ob08_nav_verify.txt"))
-Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_position_check_ztw1.vbs") -Arguments @($checkAfterOut, $validFrom, $RateType, ($currList -join ","))
+Invoke-CscriptFile -ScriptPath (Join-Path $scriptsDir "sap_gui_ob08_position_check_ztw1.vbs") -Arguments @($checkAfterOut, $validFrom, $RateType, ($currList -join ","), $ToCurrency)
 
 $after = Parse-PositionCheck -Path $checkAfterOut
 $verifyOk = $true
@@ -236,7 +240,7 @@ if (-not $verifyOk) {
     throw "SAP verification failed. Review $checkAfterOut."
 }
 
-$sapVerifyStatus = "Verified $RateType / USD|EUR|JPY|CNY / $ToCurrency / $validFrom and KURSP matches customs purchase rates."
+$sapVerifyStatus = "Verified $RateType / $($currList -join '|') / $ToCurrency / $validFrom and KURSP matches customs purchase rates."
 $gmailStatus = "not sent"
 $gmailMessageId = "not sent"
 

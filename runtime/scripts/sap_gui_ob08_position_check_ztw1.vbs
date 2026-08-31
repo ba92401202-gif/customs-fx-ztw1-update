@@ -1,10 +1,14 @@
 Option Explicit
 
-Dim outPath, validFrom, rateType, currenciesArg
+Dim outPath, validFrom, rateType, currenciesArg, toCurrency
 outPath = WScript.Arguments(0)
 validFrom = WScript.Arguments(1)
 rateType = WScript.Arguments(2)
 currenciesArg = WScript.Arguments(3)
+toCurrency = "TWD"
+If WScript.Arguments.Count > 4 Then
+  toCurrency = WScript.Arguments(4)
+End If
 
 Dim fso, out
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -78,7 +82,7 @@ Sub PositionAndDump(fcurr)
   OpenPosition
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[0,21]").Text = rateType
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[1,21]").Text = fcurr
-  sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[2,21]").Text = "TWD"
+  sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[2,21]").Text = toCurrency
   sess.findById("wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[3,21]").Text = validFrom
   sess.findById("wnd[1]/tbar[0]/btn[0]").Press
   WScript.Sleep 800
